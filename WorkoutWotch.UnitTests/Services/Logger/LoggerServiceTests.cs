@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using WorkoutWotch.Services.Contracts.Logger;
 using WorkoutWotch.Services.Logger;
@@ -15,7 +16,7 @@ namespace WorkoutWotch.UnitTests.Services.Logger
     public class LoggerServiceTests
     {
         [Fact]
-        public void is_debug_enabled_reflects_threshold()
+        public void is_debug_enabled_honors_threshold()
         {
             var service = new LoggerService();
 
@@ -27,7 +28,7 @@ namespace WorkoutWotch.UnitTests.Services.Logger
         }
 
         [Fact]
-        public void is_info_enabled_reflects_threshold()
+        public void is_info_enabled_honors_threshold()
         {
             var service = new LoggerService();
 
@@ -39,7 +40,7 @@ namespace WorkoutWotch.UnitTests.Services.Logger
         }
 
         [Fact]
-        public void is_performacne_enabled_reflects_threshold()
+        public void is_performacne_enabled_honors_threshold()
         {
             var service = new LoggerService();
 
@@ -51,7 +52,7 @@ namespace WorkoutWotch.UnitTests.Services.Logger
         }
 
         [Fact]
-        public void is_warning_enabled_reflects_threshold()
+        public void is_warning_enabled_honors_threshold()
         {
             var service = new LoggerService();
 
@@ -170,5 +171,54 @@ namespace WorkoutWotch.UnitTests.Services.Logger
 
             Assert.Equal("A message with an exception and a parameter (42) : System.InvalidOperationException: foo", entry.Message);
         }
+
+        [Fact]
+        public async Task logging_perf_is_a_noop_if_perf_level_is_disabled()
+        {
+            var service = new LoggerService();
+            var logger = service.GetLogger("test");
+            service.Threshold = LogLevel.Warning;
+
+            var entryTask = service
+                .Entries
+                .FirstAsync()
+                .Timeout(TimeSpan.FromSeconds(3))
+                .ToTask();
+
+            using (logger.Performance("this should not be logged"))
+            {
+                
+            }
+
+            logger.Warning("this should be logged");
+
+            var entry = await entryTask;
+
+            Assert.Equal("this should be logged",entry.Message);
+
+        }
+
+        [Fact]
+        public async Task logging_perf_adds_extra_performance_information_to_the_log_message()
+        {
+            var service = new LoggerService();
+            var logger = service.GetLogger("test");
+            var entryTask = service
+                .Entries
+                .FirstAsync()
+                .Timeout(TimeSpan.FromSeconds(3))
+                .ToTask();
+
+            using (logger.Performance("Some performance {0}", "entry"))
+            {
+                
+            }
+
+            var entry = await entryTask;
+
+            // Some performace entry [00:00:00.0045605 (4ms)]
+            Assert.True(Regex.IsMatch(entry.Message, @"Some performance entry \[\d\d:\d\d:\d\d\.\d*? \(\d*?ms\)\]"));
+        }
+
     }
 }
