@@ -21,13 +21,18 @@ namespace WorkoutWotch.Services.Logger
         {
             _entries = new Subject<LogEntry>();
         }
+
+        private bool IsLevelEnabled(LogLevel level)
+            => Threshold <= level;
+
         private readonly Subject<LogEntry> _entries;
         public LogLevel Threshold { get; set; }
-        public bool IsDebugEnabled => Threshold <= LogLevel.Debug;
-        public bool IsInfoEnabled => Threshold <= LogLevel.Info;
-        public bool IsPerformanceEnabled => Threshold <= LogLevel.Performance;
-        public bool IsWarningEnabled => Threshold <= LogLevel.Warning;
-        public bool IsErrorEnabled => Threshold <= LogLevel.Error;
+        public bool IsDebugEnabled => IsLevelEnabled(LogLevel.Debug);
+        public bool IsInfoEnabled => IsLevelEnabled(LogLevel.Info);
+        public bool IsPerformanceEnabled => IsLevelEnabled(LogLevel.Performance);
+        public bool IsWarningEnabled => IsLevelEnabled(LogLevel.Warning);
+        public bool IsErrorEnabled => IsLevelEnabled(LogLevel.Error);
+
         public ILogger GetLogger(Type forType)
         {
             forType.AssertNotNull(nameof(forType));
@@ -38,7 +43,7 @@ namespace WorkoutWotch.Services.Logger
         {
             name.AssertNotNull(nameof(name));
 
-            return new Logger(this,name);
+            return new Logger(this, name);
         }
 
         public IObservable<LogEntry> Entries => _entries.AsObservable();
@@ -61,163 +66,75 @@ namespace WorkoutWotch.Services.Logger
             public bool IsWarningEnabled => _owner.IsWarningEnabled;
             public bool IsErrorEnabled => _owner.IsErrorEnabled;
 
-            
+
 
             public void Debug(string message)
             {
-                message.AssertNotNull(nameof(message));
-
-                if (!this.IsDebugEnabled)
-                {
-                    return;
-                }
-
                 this.Log(LogLevel.Debug, message);
             }
 
-            
+
 
             public void Debug(string format, params object[] args)
             {
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
-                if (!IsDebugEnabled)
-                {
-                    return;
-                }
-
-                var message = string.Format(CultureInfo.InvariantCulture, format, args);
-                Log(LogLevel.Debug,message);
+                Log(LogLevel.Debug, format, args);
             }
 
             public void Debug(Exception exception, string format, params object[] args)
             {
-                exception.AssertNotNull(nameof(exception));
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
-                
-                if (!IsDebugEnabled)
-                {
-                    return;
-                }
-                var message = string.Format(CultureInfo.InvariantCulture, format, args)+ " : " + exception.ToString();
-                Log(LogLevel.Debug, message);
+
+                Log(LogLevel.Debug, exception, format, args);
             }
 
             public void Info(string message)
             {
-                message.AssertNotNull(nameof(message));
-
-                if (!this.IsInfoEnabled)
-                {
-                    return;
-                }
-
                 this.Log(LogLevel.Info, message);
             }
 
             public void Info(string format, params object[] args)
             {
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
-                if (!IsInfoEnabled)
-                {
-                    return;
-                }
 
-                var message = string.Format(CultureInfo.InvariantCulture, format, args);
-                Log(LogLevel.Info, message);
+                Log(LogLevel.Info, format, args);
             }
 
             public void Info(Exception exception, string format, params object[] args)
             {
-                exception.AssertNotNull(nameof(exception));
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
 
-                if (!IsInfoEnabled)
-                {
-                    return;
-                }
-                var message = string.Format(CultureInfo.InvariantCulture, format, args) + exception.ToString();
-                Log(LogLevel.Info, message);
+                Log(LogLevel.Info, exception, format, args);
             }
 
             public void Warning(string message)
             {
-                message.AssertNotNull(nameof(message));
-
-                if (!this.IsWarningEnabled)
-                {
-                    return;
-                }
 
                 this.Log(LogLevel.Warning, message);
             }
 
             public void Warning(string format, params object[] args)
             {
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
-
-                if (!IsWarningEnabled)
-                {
-                    return;
-                }
-                var message = string.Format(CultureInfo.InvariantCulture, format, args);
-                Log(LogLevel.Warning, message);
+                Log(LogLevel.Warning, format, args);
             }
 
             public void Warning(Exception exception, string format, params object[] args)
             {
-                exception.AssertNotNull(nameof(exception));
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
 
-                if (!IsWarningEnabled)
-                {
-                    return;
-                }
-                var message = string.Format(CultureInfo.InvariantCulture, format, args) + exception.ToString();
-                Log(LogLevel.Warning, message);
+                Log(LogLevel.Warning, exception, format, args);
             }
 
             public void Error(string message)
             {
-                message.AssertNotNull(nameof(message));
-
-                if (!IsErrorEnabled)
-                {
-                    return;
-                }
                 Log(LogLevel.Error, message);
             }
 
             public void Error(string format, params object[] args)
             {
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
 
-                if (!IsErrorEnabled)
-                {
-                    return;
-                }
-                var message = string.Format(CultureInfo.InvariantCulture, format, args);
-                Log(LogLevel.Error, message);
+                Log(LogLevel.Error, format, args);
             }
 
             public void Error(Exception exception, string format, params object[] args)
             {
-                exception.AssertNotNull(nameof(exception));
-                format.AssertNotNull(nameof(format));
-                args.AssertNotNull(nameof(args));
 
-                if (!IsErrorEnabled)
-                {
-                    return;
-                }
-                var message = string.Format(CultureInfo.InvariantCulture, format, args) + exception.ToString();
-                Log(LogLevel.Error, message);
+                Log(LogLevel.Error, exception, format, args);
             }
 
             public IDisposable Performance(string message)
@@ -230,6 +147,35 @@ namespace WorkoutWotch.Services.Logger
                 }
 
                 return new PerfBlock(this, message);
+            }
+
+            private void Log(LogLevel level, string format, params object[] args)
+            {
+                format.AssertNotNull(nameof(format));
+                args.AssertNotNull(nameof(format));
+
+                if (!_owner.IsLevelEnabled(level))
+                {
+                    return;
+                }
+
+                var message = string.Format(CultureInfo.InvariantCulture, format, args);
+                Log(level, message);
+            }
+
+            private void Log(LogLevel level, Exception exception, string format, params object[] args)
+            {
+                exception.AssertNotNull(nameof(exception));
+                format.AssertNotNull(nameof(format));
+                args.AssertNotNull(nameof(format));
+
+                if (!_owner.IsLevelEnabled(level))
+                {
+                    return;
+                }
+
+                var message = string.Format(CultureInfo.InvariantCulture, format, args) + " : " + exception.ToString();
+                Log(level, message);
             }
 
             public IDisposable Performance(string format, params object[] args)
@@ -248,6 +194,12 @@ namespace WorkoutWotch.Services.Logger
 
             private void Log(LogLevel level, string message)
             {
+                message.AssertNotNull(nameof(message));
+                if (!_owner.IsLevelEnabled(level))
+                {
+                    return;
+                }
+
                 var entry = new LogEntry(DateTime.UtcNow, Name, level, Environment.CurrentManagedThreadId, message);
                 _owner._entries.OnNext(entry);
             }
@@ -258,11 +210,11 @@ namespace WorkoutWotch.Services.Logger
                 private readonly string _message;
                 private readonly Stopwatch _stopwatch;
 
-                public PerfBlock(Logger owner,string message)
+                public PerfBlock(Logger owner, string message)
                 {
                     _owner = owner;
                     _message = message;
-                    _stopwatch= Stopwatch.StartNew();
+                    _stopwatch = Stopwatch.StartNew();
                 }
 
                 protected override void Dispose(bool disposing)
@@ -272,9 +224,8 @@ namespace WorkoutWotch.Services.Logger
                     if (disposing)
                     {
                         _stopwatch.Stop();
-                        this._owner.Log(LogLevel.Performance,
-                            string.Format(CultureInfo.InvariantCulture, "{0} [{1} ({2}ms)]", _message,
-                                _stopwatch.Elapsed, _stopwatch.ElapsedMilliseconds));
+                        this._owner.Log(LogLevel.Performance, "{0} [{1} ({2}ms)]", _message, this._stopwatch.Elapsed,
+                            this._stopwatch.ElapsedMilliseconds);
                     }
                 }
             }
