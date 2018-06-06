@@ -82,9 +82,11 @@
     <Compile Include="..\SharedAssemblyInfo.cs">
       <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="Extensions\TestSchedulerExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Services\Logger\LoggerServiceTests.cs" />
     <Compile Include="System\Reactive\Linq\ObservableExtensions.cs" />
+    <Compile Include="Utility\TestSchedulerService.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
