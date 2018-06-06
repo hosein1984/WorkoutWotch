@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
+using Genesis.Ensure;
 using HelperTrinity;
 
 namespace WorkoutWotch.Utility
@@ -10,46 +11,38 @@ namespace WorkoutWotch.Utility
     /// Ensure only one call against your disposal object is ever made.
     /// So if dozens of threads try to dispose of an object at once, it will only allow one through
     /// </summary>
-    public abstract class DisposableBase : Object, IDisposable
+    public abstract class DisposableBase : object, IDisposable
     {
-        private const int DisposablNotStarted = 0;
-        private const int DisposablStarted = 1;
-        private const int DisposablCompleted = 2;
+        private const int DisposalNotStarted = 0;
+        private const int DisposalStarted = 1;
+        private const int DisposalComplete = 2;
 
-        // see the constants defined aove for valid values
-        private int _disposeStage;
+        // see the constants defined above for valid values
+        private int disposeStage;
 
 #if DEBUG
+
         ~DisposableBase()
         {
-            var message = string.Format(CultureInfo.InvariantCulture,
-                "Failed to proactively dispose of object, so it is being finalized {0}", ObjectName);
-            Debug.Assert(false, message);
+            //System.Diagnostics.Debug.WriteLine("Failed to proactively dispose of object, so it is being finalized: {0}.", this.ObjectName);
             this.Dispose(false);
         }
+
 #endif
 
         public event EventHandler Disposing;
 
-        protected bool IsDisposing
-            => Interlocked.CompareExchange(ref this._disposeStage, DisposablStarted, DisposablStarted) ==
-               DisposablStarted;
+        protected bool IsDisposing => Interlocked.CompareExchange(ref this.disposeStage, DisposalStarted, DisposalStarted) == DisposalStarted;
 
-        protected bool IsDisposed
-            => Interlocked.CompareExchange(ref this._disposeStage, DisposablCompleted, DisposablCompleted) ==
-               DisposablCompleted;
+        protected bool IsDisposed => Interlocked.CompareExchange(ref this.disposeStage, DisposalComplete, DisposalComplete) == DisposalComplete;
 
-        protected bool IsDisposedOrDisposing
-            => Interlocked.CompareExchange(ref this._disposeStage, DisposablNotStarted, DisposablNotStarted) ==
-               DisposablNotStarted;
+        protected bool IsDisposedOrDisposing => Interlocked.CompareExchange(ref this.disposeStage, DisposalNotStarted, DisposalNotStarted) != DisposalNotStarted;
 
         protected virtual string ObjectName => this.GetType().FullName;
 
-
         public void Dispose()
         {
-            if (Interlocked.CompareExchange(ref this._disposeStage, DisposablStarted, DisposablNotStarted) !=
-                DisposablNotStarted)
+            if (Interlocked.CompareExchange(ref this.disposeStage, DisposalStarted, DisposalNotStarted) != DisposalNotStarted)
             {
                 return;
             }
@@ -61,48 +54,26 @@ namespace WorkoutWotch.Utility
             this.MarkAsDisposed();
         }
 
-        protected void VerifyNotDisposing()
-        {
-            if (this.IsDisposing)
-            {
-                throw new ObjectDisposedException(this.ObjectName);
-            }
-        }
+        protected void VerifyNotDisposing() =>
+            Ensure.Condition(!this.IsDisposing, () => new ObjectDisposedException(this.ObjectName));
 
-        protected void VerifyNotDisposed()
-        {
-            if (this.IsDisposed)
-            {
-                throw new ObjectDisposedException(this.ObjectName);
-            }
-        }
+        protected void VerifyNotDisposed() =>
+            Ensure.Condition(!this.IsDisposed, () => new ObjectDisposedException(this.ObjectName));
 
-        protected void VerifyNotDisposedOrDisposing()
-        {
-            if (this.IsDisposedOrDisposing)
-            {
-                throw new ObjectDisposedException(this.ObjectName);
-            }
-        }
+        protected void VerifyNotDisposedOrDisposing() =>
+            Ensure.Condition(!this.IsDisposedOrDisposing, () => new ObjectDisposedException(this.ObjectName));
 
-        /// <summary>
-        /// Override this in subclasses. This method only ever gonna be called once per object
-        /// </summary>
-        /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
         {
         }
 
-        protected virtual void OnDisposing()
-        {
-            this.Disposing.Raise(this);
-        }
+        protected virtual void OnDisposing() =>
+            this.Disposing?.Invoke(this, EventArgs.Empty);
 
         protected void MarkAsDisposed()
         {
             GC.SuppressFinalize(this);
-            Interlocked.Exchange(ref _disposeStage, DisposablCompleted);
+            Interlocked.Exchange(ref this.disposeStage, DisposalComplete);
         }
-
     }
 }

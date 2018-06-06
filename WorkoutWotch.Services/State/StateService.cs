@@ -53,7 +53,10 @@ namespace WorkoutWotch.Services.State
             IList<Task> saveTasks;
             lock (_sync)
             {
-                saveTasks = _saveCallbacks.Select(x => x(this)).ToList();
+                saveTasks = _saveCallbacks
+                    .Select(x => x(this))
+                    .Where(x => x != null)
+                    .ToList();
             }
 
             try
